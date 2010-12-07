@@ -1,4 +1,4 @@
-# Install script for directory: /home/pixhawk/matthias/ros/lcm_mavlink_ros
+# Install script for directory: /home/pixhawk/pixhawk/mavlink-ros-pkg/lcm_mavlink_ros
 
 # Set the install prefix
 IF(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -38,7 +38,7 @@ ELSE(CMAKE_INSTALL_COMPONENT)
   SET(CMAKE_INSTALL_MANIFEST "install_manifest.txt")
 ENDIF(CMAKE_INSTALL_COMPONENT)
 
-FILE(WRITE "/home/pixhawk/matthias/ros/lcm_mavlink_ros/${CMAKE_INSTALL_MANIFEST}" "")
+FILE(WRITE "/home/pixhawk/pixhawk/mavlink-ros-pkg/lcm_mavlink_ros/${CMAKE_INSTALL_MANIFEST}" "")
 FOREACH(file ${CMAKE_INSTALL_MANIFEST_FILES})
-  FILE(APPEND "/home/pixhawk/matthias/ros/lcm_mavlink_ros/${CMAKE_INSTALL_MANIFEST}" "${file}\n")
+  FILE(APPEND "/home/pixhawk/pixhawk/mavlink-ros-pkg/lcm_mavlink_ros/${CMAKE_INSTALL_MANIFEST}" "${file}\n")
 ENDFOREACH(file)

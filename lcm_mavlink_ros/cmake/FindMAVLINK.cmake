@@ -3,11 +3,11 @@ INCLUDE(HandleLibraryTypes)
 
 SET(MAVLINK_IncludeSearchPaths
   ../../mavlink/include/pixhawk
-  ../../matthias/mavlink/include
-  ../../matthias/mavlink/include/common
+  ../../mavlink/include
+  ../../mavlink/include/common
   ../../../mavlink/include/pixhawk
-  ../../../matthias/mavlink/include
-  ../../../matthias/mavlink/include/common
+  ../../../mavlink/include
+  ../../../mavlink/include/common
 )
 
 FIND_PATH(MAVLINK_INCLUDE_DIR
