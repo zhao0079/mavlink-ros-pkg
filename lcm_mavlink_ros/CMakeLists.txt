@@ -57,3 +57,6 @@ target_link_libraries(lcmtoros glib-2.0 lcm mavconn_lcm)
 
 rosbuild_add_executable(rostolcm src/rostolcm.cpp)
 target_link_libraries(rostolcm lcm mavconn_lcm)
+
+#rosbuild_add_executable(mavlink_ros_serial src/mavlink_ros_serial.cpp)
+#target_link_libraries(rostolcm)
