@@ -1,0 +1,26 @@
+MAVLINK to ROS BRIDGE
+
+This ROS node allow to send and receive MAVLINK packets from either an
+autopilot board, wireless link (Ground Control Station) or from the MAVCONN/LCM
+middleware.
+
+MAVLINK is documented at:
+http://qgroundcontrol.org/mavlink/
+ROS is documented at:
+http://ros.org
+
+INSTALLATION:
+
+Assuming you're familiar with ROS:
+
+# Checkout the source code
+git clone <this repository url>
+# Add the folder to the ROS package list
+gedit ~/.bashrc
+# Add this line (ADJUST THE FOLDER!!!)
+export ROS_PACKAGE_PATH=~/pixhawk/mavlink-lcm-pkg:$ROS_PACKAGE_PATH
+# Change to the directory
+cd mavlink-ros-pkg
+rosmake lcm_mavlink_ros
+# Use the executables in the bin directory
+
