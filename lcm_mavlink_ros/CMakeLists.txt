@@ -14,6 +14,7 @@ FIND_PACKAGE(MAVCONN  REQUIRED)
 FIND_PACKAGE(LCM  REQUIRED)
 FIND_PACKAGE(MAVLINK  REQUIRED)
 FIND_PACKAGE(GLIB2  REQUIRED)
+FIND_PACKAGE(GTHREAD2  REQUIRED)
 
 # Set the build type.  Options are:
 #  Coverage       : w/ debug symbols, w/o optimization, w/ code-coverage
@@ -58,5 +59,7 @@ target_link_libraries(lcmtoros glib-2.0 lcm mavconn_lcm)
 rosbuild_add_executable(rostolcm src/rostolcm.cpp)
 target_link_libraries(rostolcm lcm mavconn_lcm)
 
-#rosbuild_add_executable(mavlink_ros_serial src/mavlink_ros_serial.cpp)
-#target_link_libraries(rostolcm)
+rosbuild_add_executable(mavlink_bridge_serial src/mavlink_ros_serial.cpp)
+target_link_libraries(mavlink_bridge_serial 
+  ${GLIB2_LIBRARY}
+  ${GTHREAD2_LIBRARY})

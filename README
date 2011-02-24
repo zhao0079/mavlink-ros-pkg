@@ -18,7 +18,9 @@ git clone <this repository url>
 # Add the folder to the ROS package list
 gedit ~/.bashrc
 # Add this line (ADJUST THE FOLDER!!!)
-export ROS_PACKAGE_PATH=~/pixhawk/mavlink-lcm-pkg:$ROS_PACKAGE_PATH
+export ROS_PACKAGE_PATH=~/pixhawk/mavlink-ros-pkg:$ROS_PACKAGE_PATH
+# Reload bash rc
+source ~/.bashrc
 # Change to the directory
 cd mavlink-ros-pkg
 rosmake lcm_mavlink_ros

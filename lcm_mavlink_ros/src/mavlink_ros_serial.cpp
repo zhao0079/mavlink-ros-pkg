@@ -43,17 +43,6 @@
 #include <sstream>
 #include <glib.h>
 
-std::string lcmurl = "udpm://"; ///< host name for UDP server
-bool verbose;
-
-/**
- * Grabs all mavlink-messages from the ROS-Topic "mavlink" and publishes them on the LCM-Mavlink-Channel
- */
-
-ros::Subscriber mavlink_sub;
-
-
-
 // Standard includes
 #include <iostream>
 #include <cstdlib>
@@ -73,15 +62,10 @@ ros::Subscriber mavlink_sub;
 #include <sys/ioctl.h>
 #endif
 
-// MAVLINK includes
-#include <mavlink.h>
-
 // Latency Benchmarking
 #include <sys/time.h>
 #include <time.h>
-#include <glib.h>
 
-namespace config = boost::program_options;
 using std::string;
 using namespace std;
 
@@ -99,6 +83,13 @@ bool verbose = true;             ///< Enable verbose output
 bool debug = false;               ///< Enable debug functions and output
 bool test = false;                ///< Enable test mode
 bool pc2serial = true;			  ///< Enable PC to serial push mode (send more stuff from pc over serial)
+
+/**
+ * Grabs all mavlink-messages from the ROS-Topic "mavlink" and publishes them on the LCM-Mavlink-Channel
+ */
+
+ros::Subscriber mavlink_sub;
+ros::Publisher mavlink_pub;
 
 /**
  * @brief Handle a MAVLINK message received from LCM
@@ -168,22 +159,21 @@ static void mavlink_handler (const lcm_recv_buf_t *rbuf, const char * channel,
 			{
 				mavlink_message_t r_msg;
 				mavlink_msg_ping_pack(systemid, compid, &r_msg, ping.seq, msg->sysid, msg->compid, r_timestamp);
-				mavlink_message_t_publish(lcm, MAVLINK_MAIN, &r_msg);
+				/**
+				 * Mark the ROS-Message as coming from LCM so that it will not be sent back to LCM
+				 */
+
+				lcm_mavlink_ros::Mavlink rosmavlink_msg;
+				createROSFromMavlink(&r_msg,&rosmavlink_msg);
+				rosmavlink_msg.fromlcm = true;
+
+				/**
+				 * Send the received MAVLink message to ROS (topic: mavlink, see main())
+				 */
+				mavlink_pub.publish(rosmavlink_msg);
 			}
 		}
 	}
-}
-
-void* lcm_wait(void* lcm_ptr)
-{
-	lcm_t* lcm = (lcm_t*) lcm_ptr;
-	// Blocking wait for new data
-	while (1)
-	{
-		if (debug) printf("Waiting for LCM data\n");
-		lcm_handle (lcm);
-	}
-	return NULL;
 }
 
 
@@ -452,13 +442,13 @@ void* serial_wait(void* serial_ptr)
 			}
 			
 			if (verbose)
-				ROS_INFO("Received message #%d on channel \"%s\" (sys:%d|comp:%d):\n", msg->msgid, channel, msg->sysid, msg->compid);
+				ROS_INFO("Received message #%d (sys:%d|comp:%d):\n", message.msgid, message.sysid, message.compid);
 			
 			/**
 			 * Serialize the Mavlink-ROS-message
 			 */
 			lcm_mavlink_ros::Mavlink rosmavlink_msg;
-			createROSFromMavlink(msg,&rosmavlink_msg);
+			createROSFromMavlink(&message,&rosmavlink_msg);
 			
 			/**
 			 * Mark the ROS-Message as coming from LCM so that it will not be sent back to LCM
@@ -490,7 +480,7 @@ void mavlinkCallback(const lcm_mavlink_ros::Mavlink::ConstPtr& mavlink_ros_msg)
 	/**
 	 * Send mavlink_message to LCM (so that the rest of the MAVConn world can hear us)
 	 */
-	mavlink_message_t_publish (lcm, "MAVLINKROS", &msg);
+
 
 	if (verbose)
 		ROS_INFO("Sent Mavlink from ROS to LCM, Message-ID: [%i]", mavlink_ros_msg->msgid);
@@ -502,7 +492,7 @@ int main(int argc, char **argv) {
 	// Handling Program options
 	static GOptionEntry entries[] =
 	{
-			{ "lcmurl", 'l', 0, G_OPTION_ARG_STRING, &lcmurl, "LCM Url to connect to", "udpm://" },
+			{ "portname", 'l', 0, G_OPTION_ARG_STRING, &port, "LCM Url to connect to", "udpm://" },
 			{ "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose, "Be verbose", NULL },
 			{ NULL }
 	};

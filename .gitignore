@@ -13,3 +13,4 @@ CMakeFiles
 .project
 CMakeCache.txt
 Makefile
+lcm_mavlink_ros/bin/*
