@@ -29,6 +29,7 @@
  *   This process connects any external MAVLink UART device to the system's LCM bus.
  *
  *   @author Lorenz Meier, <mavteam@student.ethz.ch>
+ *   @author Matthias Egli, <mavteam@student.ethz.ch
  *   @author Fabian Landau, <mavteam@student.ethz.ch>
  *   @author Benjamin Knecht (bknecht@student.ethz.ch)
  *
@@ -71,7 +72,7 @@ using namespace std;
 
 struct timeval tv;		  ///< System time
 
-int baud;                 ///< The serial baud rate
+int baud = 115200;                 ///< The serial baud rate
 
 // Settings
 int systemid = 42;             ///< The unique system id of this MAV, 0-127. Has to be consistent across the system
@@ -79,10 +80,10 @@ int compid = PX_COMP_ID_MAVLINK_BRIDGE_SERIAL;
 int serial_compid = 0;
 std::string port = "/dev/ttyUSB0";              ///< The serial port name, e.g. /dev/ttyUSB0
 bool silent = false;              ///< Wether console output should be enabled
-bool verbose = true;             ///< Enable verbose output
+bool verbose = false;             ///< Enable verbose output
 bool debug = false;               ///< Enable debug functions and output
-bool test = false;                ///< Enable test mode
 bool pc2serial = true;			  ///< Enable PC to serial push mode (send more stuff from pc over serial)
+int fd;
 
 /**
  * Grabs all mavlink-messages from the ROS-Topic "mavlink" and publishes them on the LCM-Mavlink-Channel
@@ -90,92 +91,6 @@ bool pc2serial = true;			  ///< Enable PC to serial push mode (send more stuff f
 
 ros::Subscriber mavlink_sub;
 ros::Publisher mavlink_pub;
-
-/**
- * @brief Handle a MAVLINK message received from LCM
- *
- * The message is forwarded to the serial port.
- *
- * @param rbuf LCM receive buffer
- * @param channel LCM channel
- * @param msg MAVLINK message
- * @param user LCM user
- */
-static void mavlink_handler (const lcm_recv_buf_t *rbuf, const char * channel,
-							 const mavlink_message_t* msg, void * user)
-{
-	int fd = *(static_cast<int*>(user));
-	if (fd == -1)
-	{
-		std::cerr << "Unable to send message over serial port. Port " << port << " not ready!" << std::endl;
-	}
-	else
-	{
-		//If msg not from system or not from IMU
-		if (!pc2serial && (msg->sysid != systemid || msg->compid != serial_compid))
-		{
-				if (verbose || debug)
-					std::cout << std::dec
-					<< "Received and forwarded LCM message with id "
-					<< static_cast<unsigned int> (msg->msgid)
-					<< " from system " << static_cast<int> (msg->sysid)
-					<< std::endl;
-				
-				// Send message over serial port
-				uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
-				int messageLength = mavlink_msg_to_send_buffer(buffer, msg);
-				if (debug) printf("Writing %d bytes\n", messageLength);
-				int written = write(fd, (char*)buffer, messageLength);
-				//ioctl(fd, TIOCFLUSH, FWRITE);
-				tcflush(fd, TCOFLUSH);
-				if (messageLength != written) fprintf(stderr, "ERROR: Wrote %d bytes but should have written %d\n", written, messageLength);
-		}
-		
-		if (pc2serial && msg->sysid == systemid)
-		{
-			if (verbose || debug)
-				std::cout << std::dec
-				<< "Received and forwarded LCM message with id "
-				<< static_cast<unsigned int> (msg->msgid)
-				<< " from system " << static_cast<int> (msg->sysid)
-				<< std::endl;
-			
-			// Send message over serial port
-			uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
-			int messageLength = mavlink_msg_to_send_buffer(buffer, msg);
-			if (debug) printf("Writing %d bytes\n", messageLength);
-			int written = write(fd, (char*)buffer, messageLength);
-			//ioctl(fd, TIOCFLUSH, FWRITE);
-			tcflush(fd, TCOFLUSH);
-			if (messageLength != written) fprintf(stderr, "ERROR: Wrote %d bytes but should have written %d\n", written, messageLength);
-		}
-		
-		if (msg->msgid == MAVLINK_MSG_ID_PING)
-		{
-			mavlink_ping_t ping;
-			mavlink_msg_ping_decode(msg, &ping);
-			uint64_t r_timestamp = getSystemTimeUsecs();
-			if (ping.target_system == 0 && ping.target_component == 0)
-			{
-				mavlink_message_t r_msg;
-				mavlink_msg_ping_pack(systemid, compid, &r_msg, ping.seq, msg->sysid, msg->compid, r_timestamp);
-				/**
-				 * Mark the ROS-Message as coming from LCM so that it will not be sent back to LCM
-				 */
-
-				lcm_mavlink_ros::Mavlink rosmavlink_msg;
-				createROSFromMavlink(&r_msg,&rosmavlink_msg);
-				rosmavlink_msg.fromlcm = true;
-
-				/**
-				 * Send the received MAVLink message to ROS (topic: mavlink, see main())
-				 */
-				mavlink_pub.publish(rosmavlink_msg);
-			}
-		}
-	}
-}
-
 
 /**
  *
@@ -311,47 +226,6 @@ bool setup_port(int fd, int baud, int data_bits, int stop_bits, bool parity, boo
 			break;
 	}
 	
-	/*
-	 
-	 //
-	 // Enable the receiver and set local mode...
-	 //
-	 
-	 options.c_cflag |= (CLOCAL | CREAD);
-	 
-	 // Setup 8N1
-	 if (!parity)
-	 {
-	 options.c_cflag &= ~PARENB;
-	 options.c_cflag &= ~CSTOPB;
-	 }
-	 
-	 if (data_bits == 8)
-	 {
-	 options.c_cflag &= ~CSIZE;
-	 options.c_cflag |= CS8;
-	 }
-	 
-	 if (!hardware_control)
-	 {
-	 // Disable hardware flow control
-	 //#ifdef _LINUX
-	 options.c_cflag &= ~CRTSCTS;
-	 //#endif
-	 }
-	 
-	 // Choose raw input
-	 options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
-	 
-	 // Set one second timeout
-	 options.c_cc[VMIN]  = 1;
-	 options.c_cc[VTIME] = 10;
-	 
-	 // Set the new options for the port...
-	 
-	 tcsetattr(fd, TCSANOW, &options);
-	 */
-	
 	//
 	// Finally, apply the configuration
 	//
@@ -415,7 +289,7 @@ void* serial_wait(void* serial_ptr)
 		// If a message could be decoded, handle it
 		if(msgReceived)
 		{
-			if (verbose || debug) std::cout << std::dec << "Received and forwarded serial port message with id " << static_cast<unsigned int>(message.msgid) << " from system " << static_cast<int>(message.sysid) << std::endl;
+			//if (verbose || debug) std::cout << std::dec << "Received and forwarded serial port message with id " << static_cast<unsigned int>(message.msgid) << " from system " << static_cast<int>(message.sysid) << std::endl;
 			
 			// Do not send images over serial port
 			
@@ -441,7 +315,7 @@ void* serial_wait(void* serial_ptr)
 				}
 			}
 			
-			if (verbose)
+			if (verbose || debug)
 				ROS_INFO("Received message #%d (sys:%d|comp:%d):\n", message.msgid, message.sysid, message.compid);
 			
 			/**
@@ -458,7 +332,7 @@ void* serial_wait(void* serial_ptr)
 			/**
 			 * Send the received MAVLink message to ROS (topic: mavlink, see main())
 			 */
-			mavlink_pub.publish(rosmavlink_msg);
+			//mavlink_pub.publish(rosmavlink_msg);
 		}
 	}
 	return NULL;
@@ -480,27 +354,35 @@ void mavlinkCallback(const lcm_mavlink_ros::Mavlink::ConstPtr& mavlink_ros_msg)
 	/**
 	 * Send mavlink_message to LCM (so that the rest of the MAVConn world can hear us)
 	 */
+	if (verbose) ROS_INFO("Sent Mavlink from ROS to LCM, Message-ID: [%i]", mavlink_ros_msg->msgid);
 
-
-	if (verbose)
-		ROS_INFO("Sent Mavlink from ROS to LCM, Message-ID: [%i]", mavlink_ros_msg->msgid);
+	// Send message over serial port
+	static uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+	int messageLength = mavlink_msg_to_send_buffer(buffer, &msg);
+	if (debug) printf("Writing %d bytes\n", messageLength);
+	int written = write(fd, (char*)buffer, messageLength);
+	tcflush(fd, TCOFLUSH);
+	if (messageLength != written) fprintf(stderr, "ERROR: Wrote %d bytes but should have written %d\n", written, messageLength);
 }
 
 int main(int argc, char **argv) {
-	ros::init(argc, argv, "rostolcm");
+	ros::init(argc, argv, "mavlink_ros_serial");
 
 	// Handling Program options
 	static GOptionEntry entries[] =
 	{
-			{ "portname", 'l', 0, G_OPTION_ARG_STRING, &port, "LCM Url to connect to", "udpm://" },
+			{ "portname", 'p', 0, G_OPTION_ARG_STRING, &port, "Serial port name", port.c_str() },
+			{ "baudrate", 'b', 0, G_OPTION_ARG_INT, &baud, "Baudrate", "115200" },
 			{ "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose, "Be verbose", NULL },
+			{ "debug", 'd', 0, G_OPTION_ARG_NONE, &debug, "Debug output", NULL },
+			{ "system", 's', 0, G_OPTION_ARG_NONE, &systemid, "Select MAVLink ID of the system", "42" },
 			{ NULL }
 	};
 
 	GError *error = NULL;
 	GOptionContext *context;
 
-	context = g_option_context_new ("- translate MAVLink messages from ROS to LCM");
+	context = g_option_context_new ("- translate MAVLink messages between ROS to serial port");
 	g_option_context_add_main_entries (context, entries, NULL);
 	//g_option_context_add_group (context, NULL);
 	if (!g_option_context_parse (context, &argc, &argv, &error))
@@ -508,16 +390,20 @@ int main(int argc, char **argv) {
 		g_print ("Option parsing failed: %s\n", error->message);
 		exit (1);
 	}
-	
-	
+
+
+	// SETUP ROS
+	ros::NodeHandle n;
+	mavlink_sub = n.subscribe("mavlink", 1000, mavlinkCallback);
+	mavlink_pub = n.advertise<lcm_mavlink_ros::Mavlink> ("mavlink", 1000);
+
+
 	// SETUP SERIAL PORT
-	
-	if (!silent) printf("SERIAL MAVLINK INTERFACE STARTED\n");
-	
+
 	// Exit if opening port failed
 	// Open the serial port.
 	if (!silent) printf("Trying to connect to %s.. ", port.c_str());
-	int fd = open_port(port);
+	fd = open_port(port);
 	if (fd == -1)
 	{
 		if (!silent) printf("failure, could not open port.\n");
@@ -539,31 +425,29 @@ int main(int argc, char **argv) {
 		if (!silent) printf("success.\n");
 	}
 	int* fd_ptr = &fd;
-	
-	
+
 	GThread* serial_thread;
 	GError* err;
-	
 	if( !g_thread_supported() )
 	{
 		g_thread_init(NULL);
 		// Only initialize g thread if not already done
 	}
-	
+
 	// Run indefinitely while the LCM and serial threads handle the data
 	if (!silent) printf("\nREADY, waiting for serial/LCM data.\n");
-	
-	
+
 	if( (serial_thread = g_thread_create((GThreadFunc)serial_wait, (void *)fd_ptr, TRUE, &err)) == NULL)
 	{
 		printf("Failed to create serial handling thread: %s!!\n", err->message );
 		g_error_free ( err ) ;
 	}
-	
+
 	int noErrors = 0;
 	if (fd == -1 || fd == 0)
 	{
-		if (!silent) fprintf(stderr, "First attempt failed, waiting for port..\n");
+		if (!silent) fprintf(stderr, "Connection attempt to port %s with %d baud, 8N1 failed, exiting.\n", port.c_str(), baud);
+		exit(EXIT_FAILURE);
 	}
 	else
 	{
@@ -578,20 +462,14 @@ int main(int argc, char **argv) {
 	}
 	
 	// Ready to roll
-	printf("\nMAVLINK TO ROS BRIDGE STARTED ON MAV %d (COMPONENT ID:%d) - RUNNING..\n\n", systemid, compid);
-	
-	
-
-	ros::NodeHandle n;
-
-	mavlink_sub = n.subscribe("mavlink", 1000, mavlinkCallback);
-
+	printf("\nMAVLINK SERIAL TO ROS BRIDGE STARTED ON MAV %d (COMPONENT ID:%d) - RUNNING..\n\n", systemid, compid);
 	
 
 	/**
 	 * Now pump callbacks (execute mavlinkCallback) until CTRL-c is pressed
 	 */
 	ros::spin();
+	
 	
 	close_port(fd);
 	
