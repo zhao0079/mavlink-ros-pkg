@@ -1,10 +1,8 @@
 #include "ros/ros.h"
-
+#include "mavlink.h"
 #include "lcm_mavlink_ros/Mavlink.h"
 #include "mavlinkros.h"
-#include "mavlink.h"
 #include <sstream>
-#include <glib.h>
 
 bool verbose;
 
@@ -40,26 +38,6 @@ void mavlinkCallback(const lcm_mavlink_ros::Mavlink::ConstPtr& mavlink_ros_msg)
 
 int main(int argc, char **argv) {
 	ros::init(argc, argv, "rostolcm");
-
-	// Handling Program options
-	static GOptionEntry entries[] =
-	{
-			{ "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose, "Be verbose", NULL },
-			{ NULL }
-	};
-
-	GError *error = NULL;
-	GOptionContext *context;
-
-	context = g_option_context_new ("- receive and print MAVLink messages from ROS");
-	g_option_context_add_main_entries (context, entries, NULL);
-	//g_option_context_add_group (context, NULL);
-	if (!g_option_context_parse (context, &argc, &argv, &error))
-	{
-		g_print ("Option parsing failed: %s\n", error->message);
-		exit (1);
-	}
-
 	ros::NodeHandle n;
 
 	mavlink_sub = n.subscribe("mavlink", 1000, mavlinkCallback);

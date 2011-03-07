@@ -37,10 +37,9 @@
 
 #include "ros/ros.h"
 
+#include "mavlink.h"
 #include "lcm_mavlink_ros/Mavlink.h"
-#include "mavconn.h"
 #include "mavlinkros.h"
-
 #include <sstream>
 #include <glib.h>
 
@@ -76,11 +75,11 @@ int baud = 115200;                 ///< The serial baud rate
 
 // Settings
 int systemid = 42;             ///< The unique system id of this MAV, 0-127. Has to be consistent across the system
-int compid = PX_COMP_ID_MAVLINK_BRIDGE_SERIAL;
+int compid = 110;
 int serial_compid = 0;
 std::string port = "/dev/ttyUSB0";              ///< The serial port name, e.g. /dev/ttyUSB0
 bool silent = false;              ///< Wether console output should be enabled
-bool verbose = false;             ///< Enable verbose output
+bool verbose = true;             ///< Enable verbose output
 bool debug = false;               ///< Enable debug functions and output
 bool pc2serial = true;			  ///< Enable PC to serial push mode (send more stuff from pc over serial)
 int fd;
@@ -296,7 +295,7 @@ void* serial_wait(void* serial_ptr)
 			// DEBUG output
 			if (debug)
 			{
-				fprintf(stderr,"Forwarding SERIAL -> LCM: ");
+				fprintf(stderr,"Forwarding SERIAL -> ROS: ");
 				unsigned int i;
 				uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
 				unsigned int messageLength = mavlink_msg_to_send_buffer(buffer, &message);
@@ -316,7 +315,7 @@ void* serial_wait(void* serial_ptr)
 			}
 			
 			if (verbose || debug)
-				ROS_INFO("Received message #%d (sys:%d|comp:%d):\n", message.msgid, message.sysid, message.compid);
+				ROS_INFO("Received message from serial with ID #%d (sys:%d|comp:%d):\n", message.msgid, message.sysid, message.compid);
 			
 			/**
 			 * Serialize the Mavlink-ROS-message
@@ -325,14 +324,14 @@ void* serial_wait(void* serial_ptr)
 			createROSFromMavlink(&message,&rosmavlink_msg);
 			
 			/**
-			 * Mark the ROS-Message as coming from LCM so that it will not be sent back to LCM
+			 * Mark the ROS-Message as coming not from LCM
 			 */
 			rosmavlink_msg.fromlcm = true;
 			
 			/**
 			 * Send the received MAVLink message to ROS (topic: mavlink, see main())
 			 */
-			//mavlink_pub.publish(rosmavlink_msg);
+			mavlink_pub.publish(rosmavlink_msg);
 		}
 	}
 	return NULL;
@@ -473,8 +472,8 @@ int main(int argc, char **argv) {
 	
 	close_port(fd);
 	
-	g_thread_join(serial_thread);
-	exit(0);
+	//g_thread_join(serial_thread);
+	//exit(0);
 
 	return 0;
 }
