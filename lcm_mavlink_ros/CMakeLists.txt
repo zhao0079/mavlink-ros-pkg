@@ -10,8 +10,8 @@ include(cmake/FindMAVLINK.cmake)
 include(cmake/FindGLIB2.cmake)
 
 
-FIND_PACKAGE(MAVCONN  REQUIRED)
-FIND_PACKAGE(LCM  REQUIRED)
+FIND_PACKAGE(MAVCONN  OPTIONAL)
+FIND_PACKAGE(LCM  OPTIONAL)
 FIND_PACKAGE(MAVLINK  REQUIRED)
 FIND_PACKAGE(GLIB2  REQUIRED)
 FIND_PACKAGE(GTHREAD2  REQUIRED)
@@ -53,11 +53,13 @@ INCLUDE_DIRECTORIES(
   ./include/
 )
 
-rosbuild_add_executable(lcmtoros src/lcmtoros.cpp)
-target_link_libraries(lcmtoros glib-2.0 lcm mavconn_lcm)
+#rosbuild_add_executable(lcmtoros src/lcmtoros.cpp)
+#target_link_libraries(lcmtoros glib-2.0 lcm mavconn_lcm)
 
-rosbuild_add_executable(rostolcm src/rostolcm.cpp)
-target_link_libraries(rostolcm lcm mavconn_lcm)
+#rosbuild_add_executable(rostolcm src/rostolcm.cpp)
+#target_link_libraries(rostolcm lcm mavconn_lcm)
+
+rosbuild_add_executable(ros_receiver_example src/ros_receiver_example)
 
 rosbuild_add_executable(mavlink_bridge_serial src/mavlink_ros_serial.cpp)
 target_link_libraries(mavlink_bridge_serial 

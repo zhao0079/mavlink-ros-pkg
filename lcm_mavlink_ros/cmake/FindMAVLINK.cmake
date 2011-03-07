@@ -8,6 +8,7 @@ SET(MAVLINK_IncludeSearchPaths
   ../../../mavlink/include/pixhawk
   ../../../mavlink/include
   ../../../mavlink/include/common
+  ./include/mavlink/common
 )
 
 FIND_PATH(MAVLINK_INCLUDE_DIR
