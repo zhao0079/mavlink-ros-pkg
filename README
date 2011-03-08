@@ -4,6 +4,8 @@ This ROS node allow to send and receive MAVLINK packets from either an
 autopilot board, wireless link (Ground Control Station) or from the MAVCONN/LCM
 middleware.
 
+For help, please visit the mailing list: http://groups.google.com/group/mavlink
+
 MAVLINK is documented at:
 http://qgroundcontrol.org/mavlink/
 ROS is documented at:
